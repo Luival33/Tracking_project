@@ -1,1 +1,19 @@
 # Tracking project
+### Introduzione
+Lo scopo del progetto consiste nella realizzazione del tracking dei lampioni, all'interno di un video, divisi in 3 componenti: pali, braccia e armature.
+A tal fine, gli strumenti principali utilizzati per effettuare le varie fasi sono il tool di etichettatura CVAT,il modello yolov8 di ultralytics, la libreria Supervision e il tracker ByteTrack.
+### Preparazione del dataset
+A partire dal video fornitomi dal professore girato con una camera gopro, ne ho ridotto la frame rate a 1FPS e l'ho diviso in tanti segmenti da 10 secondi l'uno.
+Inizialmente, ho creato le classi pole, arm e head e ho cominciato la fase di etichettatura manuale del dataset su ROBOFLOW ma, avendoci lavorato un po', mi sono reso conto che non era ottimale ai fini di etichettare per il tracking, perciò ho deciso di passare a CVAT. In modalità track, CVAT assegna automaticamente un track ID alle istanze degli oggetti etichettati e, sfruttando l'interpolazione all'interno di un bacino di frames, è possibile propagare l'istanza di un oggetto per tenere traccia del track ID assegnato alla prima apparizione. Inoltre è possibile gestire le proprietà delle etichette in base alle necessità tra cui la proprietà "outside", la quale serve a notificare che l'oggetto è uscito completamente dal campo visivo per un determinato frame e la proprietà "Occluded", la quale serve a notificare che l'oggetto è parzialmente nascosto da qualcos'altro per un determinato frame.
+Dato che il mio obiettivo primario è il tracciamento, ho pensato fosse prioritario che le rilevazioni del mio detector fossero precise piuttosto che complete per cui in un momento successivo ho deciso di eslcudere le etichette di oggetti troppo lontani per introdurre meno rumore possibile e mantenere alta la qualità.
+A conclusione di questa fase ho diviso i segmenti video da 10 secondi etichettati tra un 70% di training set, un 20% di validation set e un 10% di test set.
+### Sviluppo del modello di Detection
+Ho usato YOLOv8, come indicatomi, poiché essendo un modello non troppo recente, nel caso si dovesse passare ad un altra implementazione non si avrebbe un abbassamento eccessivo di performance. Nei primi addestramenti ho provato diverse versioni del modello e quella più bilanciata tra prestazioni e accuratezza del risultato mi è sembrato YOLOv8s.
+Dalla matrice di confusione, ho osservato che la difficoltà maggiore riguardava la rilevazione delle armature e ho cercato di gestirlo utilizzando un modello più pesante e aumentando la risoluzione di training ma, seppur con dei miglioramenti, il problema persisteva. 
+### Self-supervised learning(pseudo-labelling)
+Il tentativo migliore che potessi fare a questo punto era aumentare drasticamente il dataset di training e a tal scopo mi è stato suggerito di provare il self-supervised learning per generare le pseudo-labels.
+Questa tecnica consiste nell'addestrare il modello di partenza sulla parte di dataset etichettata e poi utilizzarlo per fare delle predizioni sulla parte rimanente non ancora etichettata e generare così le pseudo-labels.
+L'accuratezza del modello finale dipenderà dalla qualità delle pseudo-labels generate perciò ho ripulito il dataset "Manuale" e ho deciso di addestrare un modello "Insegnante" abbastanza pesante(YOLOv8m con risoluzione di training pari a 960). Ho gestito la generazione delle pseudo-labels attraverso una soglia di confidenza alta che, sostanzialmente, funge da filtro per le predizioni di cui il modello non è abbastanza sicuro poiché se molto errate potrebbero degradare l'accuratezza del modello finale.
+Ho infine addestrato nuovamente il modello sul dataset complessivo e...QUESTA PARTE DA COMPLETARE
+### Implementazione del sistema di Tracking
+Come tracker ho scelto ByteTrack e ho implementato il codice effettuando un lavoro di detection per ogni frame del video e usando il tracker per l'associazione dei track id alle varie istanze.
